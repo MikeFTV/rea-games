@@ -53,6 +53,13 @@ never drew its settled cells or grid lines. `verify` stayed green because it rep
 `scripts/exported-names.mjs` keeps every binding (commas count only at depth zero) and `npm test`
 checks it; after regenerating `docs/play/`, open the changed pages and look at them.
 
+**The bundler treated an export list as a block.** `export { B, C }` lost its names and became `{ B, C };`, which is
+valid and does nothing, so `docs/play` loaded with `undefined` and `bundle.mjs` still exited 0. `export { B as D }` became
+`{ B as D };` and the page threw `SyntaxError`. `scripts/exported-names.mjs` keeps a local list, including `B as D` as
+`D: B` and a list split over several lines, and removes that statement before stripping `export`. `export … from`,
+`export *`, `export default` and an indented `export` have no local binding the page can return. `bundle.mjs` exits 1
+and names the module and the line. `npm test` covers both.
+
 **One driver ignored PLAYWRIGHT_PATH.** Four drivers each had a copy of the Playwright lookup, and Dino called
 `require("playwright")` itself, so with Playwright installed outside the repository `record dino` failed with Node's
 "Cannot find module" while the others worked. Every driver loads it with `loadPlaywright()` from `lib/playwright.mjs`,

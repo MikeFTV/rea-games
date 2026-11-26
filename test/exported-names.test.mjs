@@ -30,3 +30,19 @@ test("the Blocks logic exports H, STEP_DECREMENT and MIN_STEP", () => {
   const names = exportedNames(fs.readFileSync(new URL("../games/blocks/ports/web/blocks.mjs", import.meta.url), "utf8"));
   for (const n of ["W", "H", "KINDS", "SHAPES", "START_STEP", "STEP_DECREMENT", "MIN_STEP", "T0", "cellsOf", "Blocks"]) assert.ok(names.includes(n), n);
 });
+
+test("a local export list adds its names, a renamed one as `exported: local`", () => {
+  assert.deepEqual(exportedNames("const B = 2, C = 3;\nexport { B, C };\n"), ["B", "C"]);
+  assert.deepEqual(exportedNames("const B = 2;\nexport { B as D };\n"), ["D: B"]);
+  assert.deepEqual(exportedNames("const A = 1, B = 2;\nexport {\n  B as D,\n  A\n};\n"), ["D: B", "A"]);
+});
+
+test("a list that re-exports from another module adds no name", () => {
+  assert.deepEqual(exportedNames('export { A } from "./x.mjs";\n'), []);
+  assert.deepEqual(exportedNames('export { A }\n  from "./x.mjs";\n'), []);
+});
+
+test("comments inside an export list are not part of a name", () => {
+  assert.deepEqual(exportedNames("const B = 2;\nexport { B/* note */as D };\n"), ["D: B"]);
+  assert.deepEqual(exportedNames("const A = 1, B = 2;\nexport {\n  A // first\n  , B\n};\n"), ["A", "B"]);
+});

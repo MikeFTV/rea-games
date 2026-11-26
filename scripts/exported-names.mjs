@@ -1,6 +1,12 @@
-// Names a module exports with `export const|let|var|function|class`, for scripts/bundle.mjs.
+// Names a module exports with `export const|let|var|function|class` or a local `export { a, b as c }` list,
+// for scripts/bundle.mjs. A renamed export is given as `c: b`, ready for the bundler's `return { … }`.
 // A declaration may bind several names (`export const W = 10, H = 20;`): every binding is kept.
 // A comma only separates bindings at depth zero, not inside a string, a comment, (), [] or {}.
+// Any other export (`export default`, `export *`, `export { … } from`) is left for the bundler to refuse.
+// A local export list, possibly over several lines; a list followed by `from` re-exports and is not matched.
+export const EXPORT_LIST = /^export\s*\{([^}]*)\}(?!\s*from\b)[ \t]*;?[ \t]*$/gm;
+// The `export` word before a declaration exportedNames understands.
+export const EXPORT_DECL = /^export\s+(?=(?:async\s+)?(?:function|class|const|let|var)\b)/gm;
 const DECL = /^export\s+(?:async\s+)?(?:function\*?|class)\s+([A-Za-z_$][\w$]*)/gm;
 const VARS = /^export\s+(?:const|let|var)\s+/gm;
 const NAME = /^[A-Za-z_$][\w$]*/;
@@ -11,6 +17,12 @@ export function exportedNames(src) {
   for (const m of src.matchAll(DECL)) found.push([m.index, m[1]]);
   for (const m of src.matchAll(VARS)) {
     for (const [at, name] of bindings(src, m.index + m[0].length)) found.push([at, name]);
+  }
+  for (const m of src.matchAll(EXPORT_LIST)) {
+    for (const item of m[1].replace(/\/\*[\s\S]*?\*\/|\/\/[^\n]*/g, " ").split(",").map((x) => x.trim()).filter(Boolean)) {
+      const [local, , exported = local] = item.split(/\s+(as)\s+/);
+      found.push([m.index, exported === local ? local : `${exported}: ${local}`]);
+    }
   }
   return found.sort((a, b) => a[0] - b[0]).map(([, name]) => name);
 }
